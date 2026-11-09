@@ -6,6 +6,8 @@ SDPA, and the measurements to see what it does.
 > **Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free**
 > Qiu et al., Qwen Team, Alibaba — [arXiv:2505.06708](https://arxiv.org/abs/2505.06708)
 
+**Interactive demo:** <https://gated-attention-minimal.netlify.app>. Drag the sliders and watch the mechanism run in your browser.
+
 The whole change:
 
 ```math
