@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gated Attention — interactive demo</title>
+<meta name="description" content="Interactive demo of gated attention (Qiu et al., arXiv:2505.06708): a sigmoid gate after attention that lets a head switch itself off.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false})"></script>
+<style>
+:root{
+  --bg:#fbfaf7; --panel:#ffffff; --ink:#1b1c1f; --muted:#62656d; --line:#e4e2dc;
+  --accent:#2f5bd3; --accent-2:#d0582f; --good:#1f8a5b; --warn:#b7791f;
+  --code-bg:#f2f0ea;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111216; --panel:#181a20; --ink:#e8e8ea; --muted:#9a9ca5; --line:#2a2d35;
+    --accent:#7b9cff; --accent-2:#ff8a5c; --good:#4fd18f; --warn:#e8b04a;
+    --code-bg:#1f2229;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+main{max-width:1080px;margin:0 auto;padding:40px 16px 80px}
+a{color:var(--accent)}
+code{overflow-wrap:anywhere}
+header .kicker{font:600 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+header h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:10px 0 8px;letter-spacing:-.01em}
+header .cite{color:var(--muted);margin:0 0 4px}
+header .links{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;margin-top:8px}
+.lede{font-size:17px;max-width:72ch;margin:24px 0}
+.eq .katex-display{margin:.4em 0}
+.eq{font-size:15px;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;margin:16px 0}
+section.demo{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin:28px 0}
+section.demo h2{font-size:19px;margin:0 0 4px}
+section.demo > p.sub{color:var(--muted);margin:0 0 16px;max-width:75ch}
+.grid{display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:start}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.controls{display:flex;flex-direction:column;gap:14px}
+.ctl label{display:block;position:relative;padding-right:5.5em;font-size:13px;color:var(--muted);margin-bottom:4px}
+.ctl label output{position:absolute;right:0;top:0;font-family:var(--mono);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,button,input[type=text],input[type=number]{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.viz{min-width:0}
+canvas,svg.chart{display:block;width:100%;height:auto;max-width:100%}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font:600 18px/1.3 var(--mono)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.caption{font-size:13px;color:var(--muted);margin-top:8px}
+.scope{color:var(--muted);font-size:14px;max-width:75ch}
+.scope h2{color:var(--ink);font-size:17px}
+footer{color:var(--muted);font-size:13px;margin-top:48px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+<style>
+.ctl input[type=text]{width:100%;font-family:var(--mono)}
+.row{display:flex;gap:8px}.row input{width:90px}
+.presets{display:flex;gap:6px;margin-top:8px}.presets button{flex:1;padding:4px 6px;font-size:12px}
+.maps{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,1.25fr);gap:12px}
+.maplabel{font-size:12px;color:var(--muted);margin-bottom:6px}
+code{font-family:var(--mono);font-size:.92em}
+.tbl-wrap{overflow-x:auto}
+table.tbl{border-collapse:collapse;width:100%;font-size:14px}
+.tbl th,.tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.tbl td{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.tbl th{font-weight:500;color:var(--muted)}
+.verdicts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:18px}
+.verdict{border:1px solid var(--line);border-left:3px solid var(--good);border-radius:8px;padding:10px 12px;font-size:14px}
+.verdict.mid{border-left-color:var(--warn)}.verdict.no{border-left-color:var(--muted)}
+.verdict b{display:block;margin-bottom:4px}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="kicker">Paper recreation · interactive demo</div>
+  <h1>Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free</h1>
+  <p class="cite">Qiu et al., Qwen Team, Alibaba — <a href="https://arxiv.org/abs/2505.06708">arXiv:2505.06708</a></p>
+  <div class="links"><a href="https://github.com/msanvarov/gated-attention-minimal">Source: msanvarov/gated-attention-minimal</a></div>
+</header>
+
+<p class="lede">Normal attention mixes the values with a softmax and passes the result straight on. This paper adds one thing: a sigmoid gate, computed from the current token, multiplied into each head's output channel by channel. A gate near 0 lets a head say nothing for that token. The paper reports three effects: a non-linearity in the value path, sparse gates, and no attention sink.</p>
+<div class="eq">\[ \begin{aligned}
+G &= \sigma\!\left(X W_\theta + b\right) && \text{query-dependent, one value per (head, channel)} \\
+\text{out} &= W_O\left(\operatorname{SDPA}(Q, K, V) \odot G\right) && \text{the paper's G1 variant}
+\end{aligned} \]</div>
+
+<section class="demo">
+  <h2>What the gate does</h2>
+  <p class="sub">One causal attention layer with random weights, run on your text. Drag the gate bias. At +8 every gate is about 1, so the gated layer matches plain attention. At −8 every gate is about 0, so the layer outputs almost nothing. In between, each token decides, channel by channel, how much of each head gets through.</p>
+  <div class="grid">
+    <div class="controls">
+      <div class="ctl"><label for="text">Input text <output id="tlen"></output></label><input type="text" id="text" maxlength="24" value="the cat sat on the mat" spellcheck="false" autocomplete="off"></div>
+      <div class="ctl"><label for="head">Head</label><select id="head"><option value="0">Head 0</option><option value="1">Head 1</option><option value="2">Head 2</option><option value="3">Head 3</option></select></div>
+      <div class="ctl">
+        <label for="bias"><span>Gate bias \(b\)</span> <output for="bias"></output></label>
+        <input id="bias" type="range" min="-8" max="8" step="0.1" value="0" data-fmt="(v>0?'+':'')+v.toFixed(1)">
+        <div class="presets"><button data-b="-8">Closed −8</button><button data-b="0">0</button><button data-b="8">Open +8</button></div>
+      </div>
+      <div class="ctl"><label for="seed">Weight seed</label><div class="row"><input type="number" id="seed" value="1" min="0" step="1"><button id="reseed">New weights</button></div></div>
+      <p class="caption">4 heads × 8 channels, model width 32. Every character gets a fixed random embedding plus a position vector, like the repo's <code>lm.py</code>.</p>
+    </div>
+    <div class="viz">
+      <div class="maps">
+        <div><div class="maplabel">Attention (rows = queries, color = √weight)</div><canvas id="attn" aria-label="Causal attention heatmap for the selected head"></canvas></div>
+        <div><div class="maplabel">Gate \(G\) per channel</div><canvas id="gate" aria-label="Gate values heatmap for the selected head"></canvas></div>
+      </div>
+      <div class="caption" id="readout">Hover over a cell to read its value.</div>
+      <div class="maplabel" style="margin-top:18px">Layer output size \(\lVert \text{out}_t \rVert\) per token, all heads</div>
+      <canvas id="bars" aria-label="Output norm per token, gated vs plain"></canvas>
+      <div class="legend"><span><i style="background:var(--muted);opacity:.5"></i>plain (gate removed, same weights)</span><span><i style="background:var(--accent)"></i>gated</span></div>
+      <div class="stats" id="stats"></div>
+      <p class="caption">The attention map doesn't change when you move the bias, because the gate acts <em>after</em> the softmax. What changes is how much of each head's result reaches the output. That's the paper's point: a head with nothing useful to add can close its gate. Without a gate, the only way to say nothing is to send its attention to a harmless token, usually position 0. That is the attention sink.</p>
+      <p class="caption">At \(b = 0\) every gate starts near 0.5, which is why the repo's default init halves the layer output. The README suggests \(b = 4\) (\(\sigma(4) \approx 0.98\)) when you add the gate to an already-trained checkpoint.</p>
+    </div>
+  </div>
+</section>
+
+<section class="demo">
+  <h2>What training did</h2>
+  <p class="sub">These numbers come from the repo's <code>train.py</code> and are not computed on this page. It trains two 3-layer character LMs with the same seed, one with the gate and one without.</p>
+  <div class="tbl-wrap">
+  <table class="tbl">
+    <thead><tr><th></th><th>gated</th><th>plain</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">final loss</th><td>0.0378</td><td>0.0457</td></tr>
+      <tr><th scope="row">sink mass per layer</th><td>[0.045, 0.042, 0.041]</td><td>[0.040, 0.038, 0.037]</td></tr>
+      <tr><th scope="row">peak |hidden|</th><td>22.8</td><td>29.3</td></tr>
+      <tr><th scope="row">gate sparsity (trained)</th><td>[0.058, 0.086, 0.162]</td><td>–</td></tr>
+      <tr><th scope="row">gate sparsity (at init)</th><td>[0.000, 0.000, 0.000]</td><td>–</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="maplabel" style="margin-top:18px">Share of gate values below 0.1, per layer</div>
+  <canvas id="trainbars" aria-label="Gate sparsity per layer at init vs after training"></canvas>
+  <div class="legend"><span><i style="background:var(--muted);opacity:.5"></i>at init (all zero)</span><span><i style="background:var(--accent)"></i>after 600 steps</span></div>
+  <div class="verdicts">
+    <div class="verdict"><b>Reproduces: learned sparsity</b>No gate is below 0.1 at the start. After training, 4–20% of channels are switched off, and the share grows with depth. The same happened on all 5 seeds.</div>
+    <div class="verdict mid"><b>Reproduces loosely: smaller activations</b>The gated model's peak hidden value was 8–20% lower on 5 of 5 seeds. That matches the paper's finding on very large activations, but this model is far too small to confirm it.</div>
+    <div class="verdict no"><b>Does not reproduce: the attention sink</b>Neither model forms a sink. Attention to position 0 stays close to uniform (about \(1/T\)) in both. Sinks appear in large-scale pretraining, so this run can't confirm or refute the paper's main claim.</div>
+    <div class="verdict no"><b>Not a loss comparison</b>The gated model had the lower loss on 3 of 5 seeds. At this scale, that is noise.</div>
+  </div>
+</section>
+
+<section class="scope">
+  <h2>What this demo simplifies</h2>
+  <p>The weights above are random, not trained, so the gate patterns show how the mechanism works, not what a real model learns. It's one layer with no positional encoding beyond a position vector (no RoPE), no grouped-query attention, and no KV cache. Only the G1 variant is implemented: a sigmoid gate after SDPA, separate for each head and channel. That's the one the paper recommends, out of several placements it tests (on Q, K or V, before SDPA, shared across heads, other activations).</p>
+</section>
+
+<footer>Everything on this page runs in your browser in plain JavaScript. It reruns the mechanism from the repo's PyTorch code at small scale; it is not the trained model.</footer>
+</main>
+<script>
+// ---- shared helpers (keep identical across the five demos) ----
+function rng(seed){ // mulberry32
+  let a = seed >>> 0;
+  const u = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  u.normal = () => { let x = 0; while (x === 0) x = u(); return Math.sqrt(-2 * Math.log(x)) * Math.cos(2 * Math.PI * u()); };
+  return u;
+}
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// Crisp canvas sized to its CSS width; returns 2d ctx and logical size.
+function setupCanvas(cv, aspect){
+  const w = cv.clientWidth || cv.parentElement.clientWidth, h = Math.round(w * aspect), d = devicePixelRatio || 1;
+  cv.width = w * d; cv.height = h * d; cv.style.height = h + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(d, 0, 0, d, 0, 0); return { ctx, w, h };
+}
+// Sequential colormap 0..1 (light->accent). Diverging: pass {diverging:true} for -1..1.
+function color(v, opts = {}){
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const bg = dark ? [24,26,32] : [255,255,255];
+  const a = dark ? [123,156,255] : [47,91,211], b = dark ? [255,138,92] : [208,88,47];
+  let c = a, t = v;
+  if (opts.diverging){ c = v < 0 ? b : a; t = Math.abs(v); }
+  t = Math.max(0, Math.min(1, t));
+  return `rgb(${bg.map((x,i)=>Math.round(x + (c[i]-x)*t)).join(',')})`;
+}
+function heatmap(ctx, M, x, y, w, h, opts = {}){
+  const R = M.length, C = M[0].length, cw = w / C, ch = h / R;
+  for (let i = 0; i < R; i++) for (let j = 0; j < C; j++){
+    const v = M[i][j]; if (v === null || Number.isNaN(v)) continue;
+    ctx.fillStyle = color(v, opts); ctx.fillRect(x + j*cw, y + i*ch, Math.ceil(cw), Math.ceil(ch));
+  }
+  ctx.strokeStyle = css('--line'); ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+}
+// Line chart. series: [{data:[[x,y],...], color, label, dash}]. opts: {logY, yMin, yMax, xLabel, yLabel}
+function lineChart(cv, series, opts = {}){
+  const { ctx, w, h } = setupCanvas(cv, opts.aspect || 0.45), pad = { l: 48, r: 12, t: 10, b: 30 };
+  ctx.clearRect(0, 0, w, h);
+  const tf = v => opts.logY ? Math.log10(Math.max(v, 1e-12)) : v;
+  const xs = series.flatMap(s => s.data.map(p => p[0])), ys = series.flatMap(s => s.data.map(p => tf(p[1])));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const y0 = opts.yMin !== undefined ? tf(opts.yMin) : Math.min(...ys), y1 = opts.yMax !== undefined ? tf(opts.yMax) : Math.max(...ys);
+  const X = v => pad.l + (v - x0) / ((x1 - x0) || 1) * (w - pad.l - pad.r);
+  const Y = v => h - pad.b - (tf(v) - y0) / ((y1 - y0) || 1) * (h - pad.t - pad.b);
+  ctx.font = '11px ' + css('--mono'); ctx.fillStyle = css('--muted'); ctx.strokeStyle = css('--line');
+  for (let k = 0; k <= 4; k++){
+    const yv = y0 + (y1 - y0) * k / 4, py = h - pad.b - k / 4 * (h - pad.t - pad.b);
+    ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(w - pad.r, py); ctx.stroke();
+    const lab = opts.logY ? (p => p < 1e-3 || p >= 1e4 ? p.toExponential(0) : String(+p.toPrecision(2)))(10 ** yv) : (Math.abs(yv) >= 100 ? yv.toFixed(0) : yv.toPrecision(3));
+    ctx.textAlign = 'right'; ctx.fillText(lab, pad.l - 6, py + 4);
+  }
+  ctx.textAlign = 'center';
+  for (let k = 0; k <= 4; k++){ const xv = x0 + (x1 - x0) * k / 4; ctx.fillText(+xv.toPrecision(3), X(xv), h - pad.b + 16); }
+  if (opts.xLabel) ctx.fillText(opts.xLabel, (pad.l + w - pad.r) / 2, h - 2);
+  for (const s of series){
+    ctx.strokeStyle = s.color; ctx.lineWidth = s.width || 2; ctx.setLineDash(s.dash || []);
+    ctx.beginPath(); s.data.forEach((p, i) => i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.stroke();
+  }
+  ctx.setLineDash([]); ctx.lineWidth = 1;
+  return { X, Y, ctx, w, h, pad };
+}
+function setStats(el, items){ // items: [[label, value], ...]
+  el.innerHTML = items.map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+}
+// Bind a range input to its <output> and a callback. Usage: <input id=x type=range> <output for=x>
+function bind(id, fn){
+  const el = document.getElementById(id), out = document.querySelector(`output[for="${id}"]`);
+  const f = el.dataset.fmt ? new Function('v', 'return ' + el.dataset.fmt) : v => v;
+  const go = () => { if (out) out.textContent = f(+el.value); fn(); };
+  el.addEventListener('input', go); if (out) out.textContent = f(+el.value);
+  return () => +el.value;
+}
+let __raf = 0; const schedule = fn => { cancelAnimationFrame(__raf); __raf = requestAnimationFrame(fn); };
+addEventListener('resize', () => window.render && schedule(window.render));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => window.render && window.render());
+// ---- end shared helpers ----
+</script>
+<script id="core">
+// Core math, mirroring gated_attention.py (G1: sigmoid gate after SDPA). Checked by node in isolation.
+const D = 32, H = 4, DH = 8, I = H * DH, MAXT = 24;
+function makeModel(seed){
+  const r = rng(seed), s = 1 / Math.sqrt(D);
+  const mat = (a, b, sc) => Array.from({ length: a }, () => Array.from({ length: b }, () => r.normal() * sc));
+  return { seed, Wq: mat(D, I, s), Wk: mat(D, I, s), Wv: mat(D, I, s), Wg: mat(D, I, s),
+           Wo: mat(I, D, 1 / Math.sqrt(I)), pos: mat(MAXT, D, 0.5) };
+}
+// x_t = fixed random embedding of the character + position vector (as lm.py; no RoPE)
+function embed(m, text){
+  return [...text].slice(0, MAXT).map((c, t) => {
+    const r = rng(m.seed * 7919 + c.codePointAt(0));
+    return Array.from({ length: D }, (_, i) => r.normal() + m.pos[t][i]);
+  });
+}
+function mv(x, W){
+  const out = new Array(W[0].length).fill(0);
+  for (let i = 0; i < x.length; i++){ const xi = x[i], Wi = W[i]; for (let j = 0; j < out.length; j++) out[j] += xi * Wi[j]; }
+  return out;
+}
+const sigmoid = z => 1 / (1 + Math.exp(-z));
+// One causal attention layer, run gated and plain through the same weights.
+function forward(m, X, bias){
+  const T = X.length, q = X.map(x => mv(x, m.Wq)), k = X.map(x => mv(x, m.Wk)), v = X.map(x => mv(x, m.Wv));
+  const g = X.map(x => mv(x, m.Wg).map(z => sigmoid(z + bias)));   // (T, H*DH)
+  const o = X.map(() => new Array(I).fill(0));                      // SDPA output, heads concatenated
+  const attn = [], gate = [];
+  for (let h = 0; h < H; h++){
+    const A = [], G = [];
+    for (let t = 0; t < T; t++){
+      const logits = [];
+      for (let s = 0; s <= t; s++){ let d = 0; for (let c = 0; c < DH; c++) d += q[t][h*DH+c] * k[s][h*DH+c]; logits.push(d / Math.sqrt(DH)); }
+      const mx = Math.max(...logits), e = logits.map(z => Math.exp(z - mx)), Z = e.reduce((a, b) => a + b, 0);
+      const row = new Array(T).fill(0); e.forEach((z, s) => { row[s] = z / Z; });   // future keys stay exactly 0
+      for (let c = 0; c < DH; c++){ let acc = 0; for (let s = 0; s <= t; s++) acc += row[s] * v[s][h*DH+c]; o[t][h*DH+c] = acc; }
+      A.push(row); G.push(g[t].slice(h*DH, h*DH + DH));
+    }
+    attn.push(A); gate.push(G);
+  }
+  return { attn, gate, plain: o.map(ot => mv(ot, m.Wo)), gated: o.map((ot, t) => mv(ot.map((z, j) => z * g[t][j]), m.Wo)) };
+}
+const vnorm = a => Math.hypot(...a);
+// Same definitions as sink_mass / gate_sparsity in gated_attention.py
+function sinkMass(attn){ let s = 0, n = 0; for (const A of attn) for (let t = 1; t < A.length; t++){ s += A[t][0]; n++; } return n ? s / n : NaN; }
+function gateSparsity(gate, th = 0.1){ const all = gate.flat(2); return all.filter(x => x < th).length / all.length; }
+</script>
+<script>
+const $ = id => document.getElementById(id);
+const label = c => c === ' ' ? '·' : c;
+let model = null, layout = null;
+
+function bars(cv, labels, groups, opts = {}){
+  const { ctx, w, h } = setupCanvas(cv, opts.aspect || 0.3), pad = { l: 40, r: 8, t: 8, b: 22 };
+  ctx.clearRect(0, 0, w, h);
+  const max = opts.max || Math.max(1e-9, ...groups.flatMap(g => g.values));
+  const n = labels.length, gw = (w - pad.l - pad.r) / n, bw = gw * 0.8 / groups.length, ph = h - pad.t - pad.b;
+  ctx.font = '11px ' + css('--mono'); ctx.strokeStyle = css('--line'); ctx.fillStyle = css('--muted'); ctx.textAlign = 'right';
+  for (let k = 0; k <= 2; k++){
+    const y = h - pad.b - k / 2 * ph; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+    ctx.fillText((max * k / 2).toPrecision(2), pad.l - 6, y + 4);
+  }
+  groups.forEach((g, k) => {
+    ctx.fillStyle = g.color; ctx.globalAlpha = g.alpha || 1;
+    g.values.forEach((v, i) => { const bh = Math.min(v, max) / max * ph; ctx.fillRect(pad.l + i * gw + gw * 0.1 + k * bw, h - pad.b - bh, Math.max(1, bw - 1), bh); });
+  });
+  ctx.globalAlpha = 1; ctx.fillStyle = css('--muted'); ctx.textAlign = 'center';
+  labels.forEach((l, i) => ctx.fillText(l, pad.l + (i + 0.5) * gw, h - 6));
+}
+
+function drawMaps(res, chars, h){
+  const T = chars.length, L = 16;
+  const A = setupCanvas($('attn'), 1), cell = (A.w - L) / T, fs = cell < 13 ? 9 : 11;
+  A.ctx.clearRect(0, 0, A.w, A.h);
+  heatmap(A.ctx, res.attn[h].map((row, i) => row.map((v, j) => j <= i ? Math.sqrt(v) : null)), L, L, T * cell, T * cell);
+  A.ctx.font = fs + 'px ' + css('--mono'); A.ctx.fillStyle = css('--muted'); A.ctx.textAlign = 'center';
+  chars.forEach((c, i) => { A.ctx.fillText(label(c), L + (i + .5) * cell, 12); A.ctx.fillText(label(c), L / 2, L + (i + .5) * cell + 4); });
+
+  const cvG = $('gate'), gw = cvG.clientWidth || cvG.parentElement.clientWidth;
+  const G = setupCanvas(cvG, A.h / gw), colw = (G.w - 4) / DH;
+  G.ctx.clearRect(0, 0, G.w, G.h);
+  heatmap(G.ctx, res.gate[h], 2, L, G.w - 4, T * cell);
+  G.ctx.font = fs + 'px ' + css('--mono'); G.ctx.fillStyle = css('--muted'); G.ctx.textAlign = 'center';
+  for (let c = 0; c < DH; c++) G.ctx.fillText(c, 2 + (c + .5) * colw, 12);
+  layout = { res, chars, h, T, L, cell, colw };
+}
+
+function hover(e, which){
+  if (!layout) return;
+  const r = e.currentTarget.getBoundingClientRect(), { res, chars, h, T, L, cell, colw } = layout;
+  const i = Math.floor((e.clientY - r.top - L) / cell);
+  if (i < 0 || i >= T) return;
+  const q = `"${label(chars[i])}" (pos ${i})`;
+  if (which === 'attn'){
+    const j = Math.floor((e.clientX - r.left - L) / cell); if (j < 0 || j >= T) return;
+    $('readout').textContent = j > i ? `query ${q} → key pos ${j}: masked, it's a future token`
+      : `query ${q} → key "${label(chars[j])}" (pos ${j}): attention ${res.attn[h][i][j].toFixed(3)}`;
+  } else {
+    const c = Math.floor((e.clientX - r.left - 2) / colw); if (c < 0 || c >= DH) return;
+    $('readout').textContent = `token ${q}, head ${h}, channel ${c}: gate ${res.gate[h][i][c].toFixed(3)}`;
+  }
+}
+$('attn').addEventListener('mousemove', e => hover(e, 'attn'));
+$('gate').addEventListener('mousemove', e => hover(e, 'gate'));
+
+const getBias = bind('bias', () => schedule(render));
+$('text').addEventListener('input', () => schedule(render));
+$('head').addEventListener('change', () => render());
+$('seed').addEventListener('input', () => schedule(render));
+$('reseed').onclick = () => { $('seed').value = Math.max(0, Math.floor(+$('seed').value || 0)) + 1; render(); };
+document.querySelectorAll('.presets button').forEach(b => b.onclick = () => { $('bias').value = b.dataset.b; $('bias').dispatchEvent(new Event('input')); });
+
+window.render = function(){
+  const seed = Math.max(0, Math.floor(+$('seed').value || 0));
+  if (!model || model.seed !== seed) model = makeModel(seed);
+  const text = $('text').value || ' ', chars = [...text].slice(0, MAXT), h = +$('head').value;
+  $('tlen').textContent = `${chars.length}/${MAXT}`;
+  const res = forward(model, embed(model, text), getBias());
+  drawMaps(res, chars, h);
+
+  const np = res.plain.map(vnorm), ng = res.gated.map(vnorm);
+  bars($('bars'), chars.map(label), [{ values: np, color: css('--muted'), alpha: 0.45 }, { values: ng, color: css('--accent') }]);
+  const gAll = res.gate.flat(2), sink = sinkMass(res.attn);
+  setStats($('stats'), [
+    ['gate sparsity (< 0.1)', (100 * gateSparsity(res.gate)).toFixed(1) + '%'],
+    ['mean gate', (gAll.reduce((a, b) => a + b, 0) / gAll.length).toFixed(3)],
+    ['sink mass (to pos 0)', Number.isNaN(sink) ? '–' : sink.toFixed(3)],
+    ['‖gated‖ / ‖plain‖', (100 * ng.reduce((a, b) => a + b, 0) / np.reduce((a, b) => a + b, 0)).toFixed(1) + '%'],
+  ]);
+
+  bars($('trainbars'), ['layer 1', 'layer 2', 'layer 3'],
+    [{ values: [0, 0, 0], color: css('--muted'), alpha: 0.45 }, { values: [0.058, 0.086, 0.162], color: css('--accent') }],
+    { aspect: 0.22, max: 0.2 });
+};
+render();
+</script>
+</body>
+</html>

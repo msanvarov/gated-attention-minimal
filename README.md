@@ -8,9 +8,11 @@ SDPA, and the measurements to see what it does.
 
 The whole change:
 
-```
-G   = sigmoid(X W_θ)                     # query-dependent, per (head, channel)
-out = W_O ( SDPA(Q, K, V) ⊙ G )
+```math
+\begin{aligned}
+G &= \sigma(X W_\theta) && \text{query-dependent, per (head, channel)} \\
+\text{out} &= W_O \big( \operatorname{SDPA}(Q, K, V) \odot G \big)
+\end{aligned}
 ```
 
 A head-specific, elementwise sigmoid gate on the attention output — the paper's
@@ -44,7 +46,7 @@ y, attn_map, gate = attn(x, return_attn=True)   # (B,H,T,T) and (B,H,T,Dh)
 `gate_bias_init` controls the gate at init. The default `0.0` starts every gate
 at 0.5, which halves the residual branch early on — training from scratch
 absorbs that fine, but on one of five seeds it noticeably slowed the first few
-hundred steps. Use `gate_bias_init=4.0` (sigmoid ≈ 0.98) when retrofitting the
+hundred steps. Use `gate_bias_init=4.0` ($\sigma(4) \approx 0.98$) when retrofitting the
 gate onto a trained checkpoint.
 
 Two metric helpers: `sink_mass(attn)` is the share of attention each query sends
@@ -60,14 +62,14 @@ python train.py                  # gated vs plain tiny LM, ~1 min
 
 What the checks pin down:
 
-- **the gate is the only difference** — force it open (`sigmoid(+30) = 1`) and
+- **the gate is the only difference** — force it open ($\sigma(30) \approx 1$) and
   the gated module reproduces plain attention through the same weights, to 1e-5
 - **the gate can close completely** — force it shut and the layer's output is
   exactly zero. That is the sparsity mechanism, not a metaphor.
 - **the hand-written attention path agrees with the fused kernel** to 1e-5, rows
   sum to 1, and nothing above the diagonal is non-zero
 - the gate really is head-specific and query-dependent (varies across both axes)
-- causality, gradient flow to `W_θ`, `gate_bias_init`, and the two metric helpers
+- causality, gradient flow to $W_\theta$, `gate_bias_init`, and the two metric helpers
 
 ## What this does and does not show
 
